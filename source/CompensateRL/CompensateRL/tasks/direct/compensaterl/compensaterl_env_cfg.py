@@ -3,46 +3,59 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from isaaclab_assets.robots.cartpole import CARTPOLE_CFG
-
+import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg
+from isaaclab.assets import AssetBaseCfg
 from isaaclab.envs import DirectRLEnvCfg
 from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.sim import SimulationCfg
 from isaaclab.utils import configclass
+from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 
+from isaaclab_assets import FRANKA_PANDA_CFG
 
 @configclass
 class CompensaterlEnvCfg(DirectRLEnvCfg):
     # env
     decimation = 2
-    episode_length_s = 5.0
-    # - spaces definition
-    action_space = 1
-    observation_space = 4
+    episode_length_s = 8
+    action_space = 7
+    observation_space = 7 + 6
     state_space = 0
 
     # simulation
-    sim: SimulationCfg = SimulationCfg(dt=1 / 120, render_interval=decimation)
-
-    # robot(s)
-    robot_cfg: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+    sim: SimulationCfg = SimulationCfg(
+        dt=1/120,
+        render_interval=decimation,
+        disable_contact_processing=True,
+    )
 
     # scene
-    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=4096, env_spacing=4.0, replicate_physics=True)
+    scene: InteractiveSceneCfg = InteractiveSceneCfg(num_envs=1024, env_spacing=1.5, replicate_physics=True)
 
-    # custom parameters/scales
-    # - controllable joint
-    cart_dof_name = "slider_to_cart"
-    pole_dof_name = "cart_to_pole"
-    # - action scale
-    action_scale = 100.0  # [N]
-    # - reward scales
-    rew_scale_alive = 1.0
-    rew_scale_terminated = -2.0
-    rew_scale_pole_pos = -1.0
-    rew_scale_cart_vel = -0.01
-    rew_scale_pole_vel = -0.005
-    # - reset states/conditions
-    initial_pole_angle_range = [-0.25, 0.25]  # pole angle sample range on reset [rad]
-    max_cart_pos = 3.0  # reset if cart exceeds this position [m]
+    # robot
+    robot: ArticulationCfg = FRANKA_PANDA_CFG.replace(prim_path="/World/envs/env_.*/Robot")
+
+    # ground
+    ground = AssetBaseCfg(
+        prim_path="/World/Ground",
+        spawn=sim_utils.GroundPlaneCfg(),
+        init_state=AssetBaseCfg.InitStateCfg(
+            position=(0.0, 0.0, 0.0)),
+    )
+
+    # Table
+    table = AssetBaseCfg(
+        prim_path="{ENV_REGEX_NS}/Table",
+        spawn=sim_utils.UsdFileCfg(
+            usd_path=f"{ISAAC_NUCLEUS_DIR}/Props/Mounts/ThorlabsTable/table_instanceable.usd"),
+            init_state=AssetBaseCfg.InitStateCfg(
+                position=(0.0, 0.0, 0.0),
+                rot=(0.70711, 0.0, 0.0, 0.70711)),
+        )
+    
+    # lights
+    light = AssetBaseCfg(
+        prim_path="/World/light",
+        spawn=sim_utils.DomeLightCfg(color=(0.75, 0.75, 0.75), intensity=2500.0),
+    )
